@@ -1,0 +1,20 @@
+Election System Source Code Review (1) - The Review Process
+Wilhansen Li, 17 April 2016
+
+This election season, I had the opportunity of reviewing the source code (thanks to Dr. Pablo Manalastas) of the automated election system. The system is provided by Smartmatic, which is different from the provider of the last presidential election, Dominion. There’s a lot of things to talk about so this will be split into multiple parts; I don’t know how many (I actually hope to finish all the parts before the election).
+The guidelines for the entire election process is dictated by RA 9369 which is hard to read because the law is an amendment to an existing law. (In tech-speak, it’s a patchfile that must  manually be applied.) One of the guidelines there is the requirement that there will by a source code review process. Note that this does not mean that the source code has to be open or free (as in speech). It just means that any interested political party or groups could review the code (Sec 12). The law also didn’t mention review by individual citizens, thus:
+
+<figure one does not simply walk in and review the election system source code (meme />
+
+So an interested individual can’t just go to COMELEC. He has to somehow be part of a political party or group, whether it’s the LP, UNA, Lakas-CMD, AGHAM, 1-UTAK, PPCRV, etc. I’m not sure what exactly constitutes a “political party or group” (I’m a programmer), but I managed to get in through PLUG (the Philippine Linux User’s Group). Moreover, the party must submit documents proving the abilities of the representatives they’re sending. Ideally, it would be professional certifications but since programmers don’t really have a “board/bar exam” (thankfully), a CV and transcript of records will do. Also, each party may only send, at most, 2 reviewers at a time to make space for other parties (the limit has been lifted eventually because there were so few people LOL).
+My reaction initially was “wtf, why all the control? It’s very bureaucratic!” but COMELEC had their reasons:
+
+* The representative ability requirement was there so the parties won’t send clueless programmers (they mentioned that there was one party that sent PHP programmers) then later complain that the source code of the system (it’s in Java and C++) is unreadable.
+
+* The party requirement is probably because of possible dangers that the reviewers might encounter e.g. they might be kidnapped in order to extract information about the system, hoping that that knowledge could be used to cheat the elections. A party or group might be more equipped to protect their members.
+
+I’m not saying that these are perfectly valid reasons, but those are reasons I could empathize with.
+Actually, those requirements aren’t needed if the source code of the system is open (it’s not) but eh, commercial interests, IP and such; got to respect them.
+To be fair to Smartmatic, after seeing the logistics, the assembly line, and the barrage of questions thrown at them by lawyers (I pity the poor tech lead who had to tank those), I could say that it’s a feat that is hard to pull off by a pure open-source solution.
+The reviewers are actually subject to an NDA so we’re not allowed to divulge details of the code to public. We could, however, describe the system to an extent.
+This secrecy is a double-edged sword: while it helps Smartmatic protect their IP, it makes it difficult for us to dispel rumours for fear of breaching the NDA. The rumors, in particular, are the yellow-shading of ballots and “DAANG MATUWID” keyword. There may be more rumours that I need to smack down in the future. I’d be fair though, if the situation is indeed valid, then I’d be the first one to acknowledge it.

@@ -1,0 +1,112 @@
+Election System Code Review (4) — How to Cheat the Elections
+============================================================
+Wilhansen Li, 1 May 2016
+
+This is supposed to be part 5 of the series, but ongoing misinformation prompted me to write this up. Ignorance makes it easier for others to believe in lies.
+Rather that giving a blanket “yes” or “no” as to whether the election is cheatable. Let’s use our heads a bit and decide whether a scenario is plausible given what we know about the election (see the previous parts for a background on the Automated ) and if no, what circumstances will make it plausible. This would help us actually pinpoint where the anomalies would occur when there’s cheating going on.
+(for background information, you may want to start from part 1, for an overview of security terms for the non-technical people check this)
+I voted for X but the VVPAT showed up Y!
+
+Suppose that the ballot was correctly shaded, then there are two ways this situation can happen:
+1. The ballot is wrong.
+2. The VCM itself is wrong.
+
+The ballot being wrong can be broken down into two situations:
+1. It was a misprint.
+2. The ballot is fake.
+
+In both cases, what is wrong is that the candidate’s name is in the wrong position. No other misprint could make that happen. You can check if the ballot is wrong by remembering the number of your candidate (e.g. 1 is Binay, 2 is Miriam... etc.) and checking that:
+1. The number of the candidate in the ballot corresponds to what was noted.
+2. The numbers in the ballots are arranged from top to bottom, left to right. (top left is 1, below 1 is 2, below 2 is 3, etc.)
+
+In the case of a misprint, the entire batch could be misprinted, or just that specific ballot is misprinted. Since the ballots are printed by bulk a misprint of the said type on a specific ballot is very unlikely (other misprints like ink smudges are still possible though).
+
+If the entire batch is misprinted, we have some subcases:
+
+1. The national candidates (pres, vp, senate) are misprinted — This is very unlikely since they are configured by bulk nationwide. That is, if they are misprinted, then ALL the ballots nationwide are misprinted. The only scenario where a misprint on ballots in a precinct is possible is when the wrong version of the ballot (like the test ballot) is sent to the precinct.
+2. For local candidates (mayor, councillors, congressmen) — This is a bit more likely but since the image for printing is directly derived from the VCM configuration, this is also unlikely unless, again, the wrong version is sent to the precinct.
+
+In both cases where the wrong version of the ballot is sent to the precinct, the VCM actually checks the precinct code of the inserted ballot to see if it matches the one in its configuration. So if the wrong version of the ballot is inserted, the VCM would reject it... unless the wrong configuration of the VCM is also sent. In which case, the VCM would read the ballot correctly, it’s just that the ballot and the VCM recorded the wrong election.
+If the ballot is fake, the machine would reject it unless the fake also has the UV mark printed on it. So what would it take to produce a ballot with a fake UV mark?
+1. One would need to infiltrate the National Printing Office to get the UV mark data...
+2. Or infiltrate the COMELEC warehouse where they configure the ballot images (which also has the UV mark data).
+3. And influence the BEI to swap out the real ones for the fake ones (and possibly destroy the real ones) or ambush the delivery truck.
+
+3 is more or less easy because it’s not so technical. 1 or 2 is hard because a “normal hitman” wouldn’t be able to figure out where the data is (neither do I even if I want to do it). Hacking their network is an option but as far as I know, the concerned computers are not connected to the internet.
+Note that the same restrictions applies on the misprint applies to the fake! It’s very unlikely that the fake could influence national elections because one could just check the numberings to see if the match. Now the question lies on whether spending resources to do 1/2 and 3, in addition to printing the ballots, is worth it to win the local elections. Also, in doing so, one should be able to predict who will win so as to switch the positions.
+
+What about the VCM being wrong? What would it take to make the machine decide one candidate over the other? There are two components in the VCM which may affect how the VCM interprets the ballot:
+1. The VCM program itself which is located in the firmware of the machine. It’s not easily changeable and it’s the same for all machines.
+2. The configuration files which is located in the SD cards. The VCM reads these to figure out which slot goes to which candidate.
+
+It should be noted that aside from encryption used for transmission, there is nothing random in the VCM program. So “20% of votes going to Duterte will go to Mar” is impossible. It’s either all or nothing!
+So the only possibility left is to tamper the configuration files in order to make all the votes of one or more candidate go to the other. How do we do that?
+
+1. The configuration files are encrypted with the key in the VCM program, so if we’re able to extract the program from the firmware (or somehow get a hand of it through other means like infiltrating the COMELEC warehouse), the key could be extracted from the binary. We can use that key to encrypt our “fake configuration files” so that the VCM would be able to read them.
+2. The configuration files are also signed. The certificate used to verify the signature is located in the VCM firmware and the key for generating the signature is located in the EMS. So to make sure that the fake configuration files validates, one would either have to load a fake certificate into the VCM firmware, or infiltrate the EMS to steal the key used for generating the signature.
+3. A minor note, one should know the format of the configuration files to know how to modify it. It should be easy relative to 1 and 2.
+
+Doing all three boils down to “obtaining” (read: stealing) the VCM and its SD card then tampering them. The big question is how to access and re-flash the firmware which I have no knowledge of (since it’s not part of the source code). In order to obtain the method, one would need to:
+* Hire a seasoned reverse-engineer to do this (may take days and a lot of $$$).
+* Or bribe Smartmatic programmers (good luck, may involve boatloads of $$$).
+* Steal the “red SD card” used to flash the firmware (you’ll also need to get a reverse-engineer, but having this will make his life easier).
+
+While it’s possible, the defense of COMELEC is that one would need to spend a lot of resources in order to successfully execute it on one device (not even a precinct). It will be statistically insignificant on a national level and it would be prohibitively expensive on a local level. It’s up to you whether you’d want to believe it or not but in my opinion, it makes sense: it’s hard or near impossible to make a 100% hack-proof system, but you can make it prohibitively expensive to hack it.
+There’s also the possibility that COMELEC officials could do it (i.e. “insider job”), but that would still mean that for a specific VCM, all votes for X will go to Y... which will be obvious.
+The above description is an offline attack on the VCM: it is done physically without the need of an internet connection. What about online attacks? Could the VCM be hacked when it’s connected to the internet?
+Though the VCM is connected to its own virtual private network, making external online attacks unlikely, let’s assume that someone managed to get into the network (e.g. an ‘insider job’). What could they do?
+Their first challenge is that the machine is online only when it’s about the transmit the election results. The VCM stays offline throughout the voting process. So when does it transmit election results? 1) During transmission tests just before the election begins and 2) transmitting the final election results when the polls close.
+The machine would be online in at most 10 minutes at which time, the hacker should find a weakness in the system and modify the configuration. Furthermore, the VCM only transmits: it doesn’t have an open socket to accept incoming connections. If one would try to hack this, one would have to:
+
+1. Get into the election system VPN (could be hard, since Smartmatic and COMELEC is managing this, rather than COMELEC alone).
+2. Set up a fake CCS server in the network (faking the Transparency Server or Central Server may also work).
+3. Know the address of the CCS server the VCM is connecting to.
+4. Hijack the DNS server of the election system so that the VCM connects to the fake CCS instead of the actual CCS.
+5. When the VCM connects to the fake CCS, have the fake CCS send deliberately bad data in an attempt to gain control of the VCM — This is easier said than done because the VCM does not accept data from the CCS aside from the connection initiation handshake and receipt confirmation.
+
+With the above attack, the most you can do is to prevent the VCM from sending its results or disable it. You can’t use it to modify the configuration files or manipulate the memory runtime so as to change the behavior completely. I’m open to being proven wrong on this though.
+
+The vote tallies are wrong!
+---------------------------
+
+There are three possible scenarios:
+1. The VCM is tampered
+2. The CCS is tampered
+3. The network has been compromised/the transmission is faked
+
+First off, the VCM directly records and transmits its results. The only way it tallies wrongly is if the configuration files are tampered. So see previous section. Of course, the easiest, non-technical method is to steal the blank ballots and VCM machines and have goons fill out the ballots and fed to the VCM. (at least they are exercising their voting rights... a bit too much!)
+
+That leaves us with the CCS and the network being tampered. Since the CCS just receives the data from the VCM and shoves it an Oracle database running on the same machine, the CCS itself has no state. All the data/tally is in the Oracle database which is one of the weak spots.
+
+Since the CCS, which accesses the database, and the database itself is running on the same computer, the credentials to access the database directly could be obtained by inspecting the CCS binary.
+
+The difficulty in actually extracting the database credentials may vary depending on how the machine is set up (I have no knowledge of this since this wasn’t part of the COMELEC review even though we requested it, or perhaps I missed it). If the CCS system is run as a separate user whose files are hidden from other users in the laptop, then extracting the database credentials would be hard if not impossible. But let’s assume it could be done...
+
+To edit the database, one needs to have direct access to the CCS laptop. Now, there will be poll watchers (by different political parties I hope), in addition to COMELEC personnel, overlooking the CCS laptop during elections, so meddling the CCS laptop would catch attention... unless the location is stormed with armed goons. Which will catch even MORE attention.
+
+The other possibility is to edit the database before elections (the night before perhaps?) so that no one will see it. The problem here is, the results could easily be checked upon startup, so unless the system operator didn’t check that the CSS starts off with a clean slate when the polls open, this would be detected.
+Moreover the VCM also sends its results to the Transparency Server (handled by PPCRV) and Central Server. So if someone, somehow, manages to change the CCS tallies without anyone noticing, the data in the Central and Transparency server could be used cross-check the CCS tallies for manipulation.
+
+Unfortunately, if the VCM manages to transmit results to the CCS but couldn’t transmit results to the Transparency or Central Server, it just gives up. So if someone would want the tampering of the CSS results to get less noticed... one would have to pull the plug on the VCM before it transmits its data.
+
+But then, missing data is easier to detect than wrong or mismatched data. So we would need to empower the PPCRV to create tools to check for anomalies in data. Though, perhaps, checking their tallies against the official COMELEC ones would suffice. A key takeaway here is that dropped results are likely but falsified results are not.
+
+The last point we have to tackle is the network being compromised and fake data being sent to the CCS, Transparency, and Central server. Since the transmissions are encrypted and signed by the BEI, the same would have to be done with the fake data for it to be accepted by the CCS, Transparency and Central server.
+
+The encryption key is located in the machine firmware while the signing key is in the SD card. Ideally, the signing key is supposed to be in the hands of the BEI in the form of a USB drive or iButton but COMELEC/Smartmatic... decided to skimp on the implementation and placed all three(3) BEI keys used to sign transmission results in the SD card. This means that the iButtons are next to useless.
+At least the BEI keys are password-protected so one would need to know the password in order to use them to sign the transmission. So where’s the password? It’s written on a paper that’s distributed with the iButtons... makes it easier to steal it.
+
+So what are the steps needed to falsify transmission?
+1. Steal the VCM with the password list (which is a piece of paper) or infiltrate the EMS to get the signing and encryption keys.
+2. Get into the private network, and get the addresses of the CCS, Central, and Transparency servers you’re supposed to send the results to.
+3. Generate the fake transmission data, making sure that the format (good luck on this) is correct and the tallies make sense.
+4. Encrypt and sign the transmission data with the encryption and signing keys obtained from step (1).
+5. Wait for the time when polls close since it’s the time the VCMs are supposed to send their data, then make sure to send the the results to all three servers before the real VCM sends its results. Or better yet, disable the real VCM so it won’t be able to send. EDIT: by “disabling the VCM” I mean tampering or destroying the real SD cards so that it can’t be used to transmit data.
+
+Note that when the CCS receives two transmission data from the same precinct with different tallies, it would flag it for manual intervention. So the best course would be to disable the VCM/SD card from sending anything.
+
+Closing
+-------
+
+One thing all the cheating methods have in common is obtaining the VCM together with its data pack (SD card, password list, etc.). So if there’s one thing we have to pay attention to, it’s the inventory of the VCM, making sure that all of them are accounted for. EDIT: don’t forget that the data pack containing the SD cards (2 of them) and the password list is as important as the VCM itself!
+

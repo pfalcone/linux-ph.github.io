@@ -1,0 +1,53 @@
+Election System Code Review (2) - The System
+============================================
+Wilhansen Li, 18 April 2016
+
+
+
+The Election System is actually made up of three parts:
+1. Vote Counting Machine (VCM) — The thing that you put your ballot in, detects your votes, and, at a latter time, sends them to the...
+2. Consolidating and Canvassing System (CCS) — The things that collect results from the VCMs (and other CCS) and tallies the final results.
+3. Election Management System (EMS) — Manages configuration of the CCS and VCM. Because, let’s be honest, you don’t want to be manually fiddling 95,000 XML files. (If you do them regularly at work, you have my sympathies)
+
+Well, I (kinda) lied, the VCM also sends its data to the Central Server (held by COMELEC) and Transparency Server (held by PPCRV if i’m not mistaken), which logs them. So that adds two more components.
+I’ll explain each one of them in detail with the hope of not breaking the NDA LOL.
+VCM
+
+The machine is actually a high-level embedded system like the Raspberry PI so we don’t need to use Assembly to program it. The thing has a touch screen, buttons, a 1-Wire/iButton interface, LAN port, USB ports, 2 SD card slots, power ports (main + battery backup), and diagnostic ports (forgot what they are and how many, didn’t interest me). In any case, most ports should be closed and sealed during the election. Voters, take note!
+
+<figure: sealed SD card slots, the BEI should never break this unless instructed by the national support system />
+
+For memory, the 2 SD card slots are used plus an internal reflashable ROM which holds the operating system, root CA, and the actual voting program. One of the SD card slot is used to hold the configuration data, BEI certificates (nope, not in the iButton), and election results while the other one serves as the duplicate/backup ala-RAID 1. The system makes sure that the data in both SD card has to always be in sync... which is easier said than done.
+
+The VCM program has a dynamic plug-in architecture which has implications in the trusted build process (will be detailed in the next part). I expressed concerns on this since it increases the attack surface. However, since it was used on other countries which have different procedures, that might have enabled them to quickly change components without having the entire system validated by whatever the certification board is (their programmer hinted this).
+Also, it should be noted that all actions on the machine are logged. So if one forges a transmission result, it could be cross-checked with that log for verification.
+
+Most of the issues revolved around:
+1. Power failure — They worked this out by having a journaling file format for ballot recording and checking and matching of files on the main and backup upon recovery. 
+2. Storage device failures — That’s where the backup slot comes in, it’s possible to duplicate the cards when needed, in order to resume operation.
+3. Transmission format — We still lack information in this area and are asking COMELEC to provide us with the schema and sample data in order to write tools to verify the result once they are uploaded to the website. We briefly saw it and it was a “fun” XML file.
+4. Transmission failure — Technically, the VCM retries, but the issue was more or less resolved by operation procedures (using backup communication methods or relocating the VCM).
+5. Ballot recognition — For the nth time, it’s too stupid to recognize letters (i.e. no OCR): it just recognizes black regions in the ballot. They added heuristics to “fix” the vertical line problem from the previous election; that’s what the blank part of the ballot just above the presidentiables is for. Fun tip: the recognition area is actually a rectangle enclosing the oblong. Don’t blame me if it invalidated your ballot because of this though :P
+6. Configuration authentication/tampering — The configuration files are encrypted and authenticated by a certificate in the system. It’s still vulnerable to internal tampering if you’re enterprising enough, but that would require internal knowledge on how to flash the ROM (to replace the root CA) which I have no knowledge of. Also, even if you managed to do that, the tampering will be detected when the results are sent to the CCS. Why would you tamper the configuration files? It’s to change/reorder the positioning of the candidates.
+
+CCS
+---
+
+The  ̶C̶a̶r̶d̶ ̶C̶a̶p̶t̶o̶r̶ ̶S̶a̶k̶u̶r̶a̶ Consolidating and Canvassing System are actually connected in a hierarchical fashion. The VCMs at each precinct send their results to either the Municipal or City CCS, which then forwards it to the Provincial CCS (owned by the Provincial Board of Canvassers), then forwards it to the National CCS (owned by COMELEC/National Board of Canvassers) and finally the Congress CCS. The structure pretty much mirrors how the Board of Canvassers would send their results on a non-automated election.
+
+The CCS is an enterprise Java App with all the enterprise Java things (think AbstractSingletonProxyFactoryBean ). It actually uses a semi-microservices architecture, with a queue and all, in order to minimize congestion/bottlenecks when everyone suddenly started uploading their results (I initially wrote more details on this but redacted it because possible NDA).
+EMS
+
+Admittedly, I didn’t have enough time to review this, but it shares some codebase with the CCS.
+
+Flow
+----
+
+So the workflow goes like:
+1. The EMS generates configuration files for the CCS and VCM.
+2. The config files are loaded into the VCM and CCS in the Smartmatic assembly line. Then the machines are deployed.
+3. Come election time, the Transparency, Central, and CCS servers are You shove your ballot into the VCM and it detects your votes and gathers them.
+4. When the polls close, all the VCMs send their results to their respective CCS and to the Transparency and Central servers.
+5. The CCS then forwards it to their parent CCS and so on so forth until in reaches COMELEC and Congress.
+
+P.S.: It’s obvious which part I studied the most.
